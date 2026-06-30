@@ -4,9 +4,89 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PFT Report Extractor</title>
+    <link rel="stylesheet" href="css/styles.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <div class="app">
+      <header class="header">
+        <div class="header__brand">
+          <h1>PFT Report Extractor</h1>
+          <p class="subtitle">Extract Body Plethysmography tables from medical PFT reports</p>
+        </div>
+      </header>
+
+      <section class="panel panel--settings">
+        <h2>Settings</h2>
+        <label class="field">
+          <span class="field__label">Gemini API Key</span>
+          <div class="field__row">
+            <input
+              type="password"
+              id="apiKey"
+              placeholder="Paste your key from Google AI Studio"
+              autocomplete="off"
+            />
+            <button type="button" id="toggleKeyVisibility" class="btn btn--ghost" title="Show/hide key">
+              Show
+            </button>
+          </div>
+          <span class="field__hint">
+            Stored only in your browser (localStorage). Get a key at
+            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
+          </span>
+        </label>
+        <label class="field">
+          <span class="field__label">Gemini Model</span>
+          <select id="modelSelect">
+            <option value="gemini-2.0-flash">gemini-2.0-flash (recommended)</option>
+            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="panel">
+        <h2>Upload Reports</h2>
+        <div id="dropZone" class="drop-zone" tabindex="0">
+          <div class="drop-zone__content">
+            <svg class="drop-zone__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <p class="drop-zone__title">Drag & drop PFT reports here</p>
+            <p class="drop-zone__subtitle">PDF, PNG, or JPG — multiple files supported</p>
+            <button type="button" id="browseBtn" class="btn btn--secondary">Browse files</button>
+          </div>
+          <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf" multiple hidden />
+        </div>
+      </section>
+
+      <section class="panel" id="filesPanel" hidden>
+        <div class="panel__header">
+          <h2>Files</h2>
+          <div class="panel__actions">
+            <button type="button" id="processAllBtn" class="btn btn--primary">Process All</button>
+            <button type="button" id="clearAllBtn" class="btn btn--ghost">Clear All</button>
+          </div>
+        </div>
+        <ul id="fileList" class="file-list"></ul>
+      </section>
+
+      <section class="panel" id="previewPanel" hidden>
+        <div class="panel__header">
+          <h2>Extracted Data</h2>
+          <div class="panel__actions">
+            <button type="button" id="exportCsvBtn" class="btn btn--primary">Export CSV</button>
+            <button type="button" id="exportXlsxBtn" class="btn btn--secondary">Export XLSX</button>
+          </div>
+        </div>
+        <div id="previewContainer" class="preview-container"></div>
+      </section>
+    </div>
+
+    <footer class="footer">
+      <p>Phase 1: Body Plethysmography only. API key stays local. Not for clinical diagnosis.</p>
+    </footer>
+
+    <script type="module" src="js/app.js"></script>
   </body>
 </html>
