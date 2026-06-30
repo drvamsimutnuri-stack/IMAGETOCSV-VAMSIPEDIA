@@ -1,92 +1,788 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PFT Report Extractor</title>
-    <link rel="stylesheet" href="css/styles.css" />
-  </head>
-  <body>
-    <div class="app">
-      <header class="header">
-        <div class="header__brand">
-          <h1>PFT Report Extractor</h1>
-          <p class="subtitle">Extract Body Plethysmography tables from medical PFT reports</p>
-        </div>
-      </header>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PFT Report Extractor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --paper:#F5F7F9;
+    --panel:#FFFFFF;
+    --ink:#16202E;
+    --ink-soft:#5A6675;
+    --ink-faint:#8B96A4;
+    --line:#E5E9EF;
+    --line-strong:#CBD3DD;
+    --field:#FBFCFD;
+    --ok:#2E7D5B;
+    --warn:#B07206;
+    --err:#C0392B;
+    --focus:#2563EB;
+    --c-spiro:#0E7C86;
+    --c-body:#3B5BA5;
+    --c-osc:#7A4FB5;
+    --c-dlco:#BD5B1E;
+    --disp:'Space Grotesk',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    --body:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+    --r:10px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--body);
+    font-size:15px;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1120px;margin:0 auto;padding:32px 24px 96px}
+  a{color:var(--c-body)}
 
-      <section class="panel panel--settings">
-        <h2>Settings</h2>
-        <label class="field">
-          <span class="field__label">Gemini API Key</span>
-          <div class="field__row">
-            <input
-              type="password"
-              id="apiKey"
-              placeholder="Paste your key from Google AI Studio"
-              autocomplete="off"
-            />
-            <button type="button" id="toggleKeyVisibility" class="btn btn--ghost" title="Show/hide key">
-              Show
-            </button>
-          </div>
-          <span class="field__hint">
-            Stored only in your browser (localStorage). Get a key at
-            <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>.
-          </span>
-        </label>
-        <label class="field">
-          <span class="field__label">Gemini Model</span>
-          <select id="modelSelect">
-            <option value="gemini-2.0-flash">gemini-2.0-flash (recommended)</option>
-            <option value="gemini-2.0-flash-lite">gemini-2.0-flash-lite</option>
-            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
-          </select>
-        </label>
-      </section>
+  /* Header */
+  .masthead{display:flex;flex-wrap:wrap;align-items:flex-end;gap:16px 28px;padding-bottom:22px;border-bottom:2px solid var(--ink)}
+  .masthead h1{
+    font-family:var(--disp);font-weight:700;font-size:30px;letter-spacing:-0.02em;
+    margin:0;line-height:1.05;
+  }
+  .masthead .sub{color:var(--ink-soft);font-size:14px;margin-top:4px}
+  .masthead .meta{margin-left:auto;text-align:right;font-family:var(--mono);font-size:11px;color:var(--ink-faint);line-height:1.7}
+  .pill-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .testpill{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;
+    padding:3px 8px;border-radius:999px;border:1px solid currentColor;font-weight:600}
 
-      <section class="panel">
-        <h2>Upload Reports</h2>
-        <div id="dropZone" class="drop-zone" tabindex="0">
-          <div class="drop-zone__content">
-            <svg class="drop-zone__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <p class="drop-zone__title">Drag & drop PFT reports here</p>
-            <p class="drop-zone__subtitle">PDF, PNG, or JPG — multiple files supported</p>
-            <button type="button" id="browseBtn" class="btn btn--secondary">Browse files</button>
-          </div>
-          <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf" multiple hidden />
-        </div>
-      </section>
+  /* Panels */
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);margin-top:20px;overflow:hidden}
+  .panel__head{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .panel__head h2{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.01em;margin:0}
+  .panel__body{padding:18px}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint)}
+  .grow{flex:1}
 
-      <section class="panel" id="filesPanel" hidden>
-        <div class="panel__header">
-          <h2>Files</h2>
-          <div class="panel__actions">
-            <button type="button" id="processAllBtn" class="btn btn--primary">Process All</button>
-            <button type="button" id="clearAllBtn" class="btn btn--ghost">Clear All</button>
-          </div>
-        </div>
-        <ul id="fileList" class="file-list"></ul>
-      </section>
+  /* Settings grid */
+  .settings{display:grid;grid-template-columns:1fr 1fr;gap:16px 22px}
+  @media(max-width:640px){.settings{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field label{font-size:12.5px;font-weight:600;color:var(--ink-soft)}
+  .field .hint{font-size:11.5px;color:var(--ink-faint);line-height:1.5}
+  input[type=text],input[type=password],select{
+    font-family:var(--body);font-size:14px;color:var(--ink);
+    background:var(--field);border:1px solid var(--line-strong);border-radius:8px;padding:9px 11px;width:100%}
+  input:focus,select:focus{outline:none;border-color:var(--focus);box-shadow:0 0 0 3px rgba(37,99,235,.14)}
+  .keyrow{display:flex;gap:8px}
+  .keyrow input{flex:1}
+  .toggle{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+  .toggle input{width:16px;height:16px;accent-color:var(--c-body)}
+  .toggle span{font-size:13px;color:var(--ink)}
 
-      <section class="panel" id="previewPanel" hidden>
-        <div class="panel__header">
-          <h2>Extracted Data</h2>
-          <div class="panel__actions">
-            <button type="button" id="exportCsvBtn" class="btn btn--primary">Export CSV</button>
-            <button type="button" id="exportXlsxBtn" class="btn btn--secondary">Export XLSX</button>
-          </div>
-        </div>
-        <div id="previewContainer" class="preview-container"></div>
-      </section>
+  /* Buttons */
+  .btn{font-family:var(--body);font-weight:600;font-size:13.5px;border-radius:8px;border:1px solid transparent;
+    padding:9px 15px;cursor:pointer;transition:transform .04s ease,background .15s ease,border-color .15s;white-space:nowrap}
+  .btn:active{transform:translateY(1px)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn--primary{background:var(--ink);color:#fff}
+  .btn--primary:hover:not(:disabled){background:#26344a}
+  .btn--ghost{background:transparent;color:var(--ink-soft);border-color:var(--line-strong)}
+  .btn--ghost:hover:not(:disabled){border-color:var(--ink-soft);color:var(--ink)}
+  .btn--accent{background:transparent;border-color:currentColor}
+  .btn--sm{padding:6px 11px;font-size:12.5px}
+  .btn:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+
+  /* Dropzone */
+  .drop{border:1.5px dashed var(--line-strong);border-radius:var(--r);background:var(--field);
+    padding:30px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s}
+  .drop:hover,.drop.drag{border-color:var(--c-body);background:#F2F6FD}
+  .drop svg{width:30px;height:30px;color:var(--ink-faint);margin-bottom:8px}
+  .drop .t{font-weight:600;font-size:14px}
+  .drop .s{font-size:12px;color:var(--ink-faint);margin-top:3px}
+
+  /* File queue */
+  .filelist{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .fileitem{display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
+  .fileitem .nm{flex:1;font-size:13px;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .status{font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;font-weight:600}
+  .status.pending{color:var(--ink-faint);background:#EEF1F5}
+  .status.processing{color:var(--c-body);background:#EAF0FB}
+  .status.done{color:var(--ok);background:#E7F3EC}
+  .status.error{color:var(--err);background:#FBEAE8}
+  .x{cursor:pointer;color:var(--ink-faint);font-size:18px;line-height:1;border:none;background:none}
+  .x:hover{color:var(--err)}
+  .queueactions{display:flex;gap:10px;margin-top:14px}
+
+  /* Test sections */
+  .section{border-left:4px solid var(--accent)}
+  .section .panel__head{gap:10px}
+  .dot{width:9px;height:9px;border-radius:2px;background:var(--accent)}
+  .count{font-family:var(--mono);font-size:11px;color:var(--ink-faint)}
+  .section .acc{color:var(--accent)}
+  .empty{padding:22px 4px;color:var(--ink-faint);font-size:13px;text-align:center}
+
+  .record{border:1px solid var(--line);border-radius:8px;margin-bottom:14px;overflow:hidden}
+  .record:last-child{margin-bottom:0}
+  .rechead{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 14px;padding:10px 13px;background:var(--field);border-bottom:1px solid var(--line);font-size:12px}
+  .rechead .file{font-family:var(--mono);font-size:11.5px;color:var(--accent);font-weight:600}
+  .rechead .dem{color:var(--ink-soft)}
+  .rechead .dem b{color:var(--ink);font-weight:600}
+
+  table.data{width:100%;border-collapse:collapse;font-size:13px}
+  table.data th,table.data td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--line)}
+  table.data th{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-faint);font-weight:600;background:#FAFBFC;position:sticky}
+  table.data th.l,table.data td.l{text-align:left}
+  table.data td.param{font-weight:600;color:var(--ink)}
+  table.data td.unit{font-family:var(--mono);font-size:11.5px;color:var(--ink-faint)}
+  table.data tr:last-child td{border-bottom:none}
+  table.data input{width:72px;text-align:right;font-family:var(--mono);font-size:12.5px;padding:3px 6px;border:1px solid transparent;border-radius:5px;background:transparent;color:var(--ink)}
+  table.data input:hover{border-color:var(--line)}
+  table.data input:focus{border-color:var(--focus);background:#fff;outline:none}
+  .tablescroll{overflow-x:auto}
+
+  .secfoot{display:flex;gap:10px;align-items:center;padding:14px 18px;border-top:1px solid var(--line);background:#FCFDFE}
+  .secfoot .lbl{font-size:12px;color:var(--ink-soft);margin-right:auto}
+
+  /* Combined */
+  .combined{border:1px solid var(--ink);background:#fff}
+  .combined .panel__head{background:var(--ink);border-bottom:none}
+  .combined .panel__head h2{color:#fff}
+  .combined .panel__head .eyebrow{color:#9FB0C4}
+  .combined .panel__body{display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+  .combined .summary{font-size:13px;color:var(--ink-soft);margin-right:auto}
+  .combined .summary b{color:var(--ink);font-family:var(--mono)}
+
+  .note{font-size:12px;color:var(--ink-soft);background:#FFF8EC;border:1px solid #F0DFBC;border-radius:8px;padding:10px 13px;margin-top:14px;line-height:1.55}
+  .note b{color:var(--warn)}
+  .footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-faint);text-align:center;line-height:1.7}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div>
+      <h1>PFT Report Extractor</h1>
+      <div class="sub">Pull result tables out of pulmonary function reports into clean, downloadable spreadsheets.</div>
+      <div class="pill-row" id="pillRow"></div>
     </div>
+    <div class="meta">
+      BREATHEFREE LUNG WELLNESS CENTER<br>
+      client-side · key stays in your browser<br>
+      not for clinical diagnosis
+    </div>
+  </header>
 
-    <footer class="footer">
-      <p>Phase 1: Body Plethysmography only. API key stays local. Not for clinical diagnosis.</p>
-    </footer>
+  <!-- Settings -->
+  <section class="panel">
+    <div class="panel__head"><span class="eyebrow">01 — Setup</span><h2>Settings</h2></div>
+    <div class="panel__body">
+      <div class="settings">
+        <div class="field">
+          <label for="apiKey">Anthropic API key</label>
+          <div class="keyrow">
+            <input type="password" id="apiKey" placeholder="Paste your Anthropic API key (sk-ant-...)" autocomplete="off" spellcheck="false" />
+            <button type="button" class="btn btn--ghost btn--sm" id="toggleKey">Show</button>
+          </div>
+          <span class="hint">Stored only in your browser (localStorage), never in the page source. Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com/settings/keys</a>.</span>
+        </div>
+        <div class="field">
+          <label for="modelSel">Claude model</label>
+          <select id="modelSel">
+            <option value="claude-sonnet-4-6">Claude Sonnet 4.6 (recommended)</option>
+            <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5 (fast &amp; low cost)</option>
+            <option value="claude-opus-4-8">Claude Opus 4.8 (max accuracy)</option>
+          </select>
+          <span class="hint">Claude vision model used to read each page. Sonnet 4.6 is a solid default; Opus 4.8 for tricky tables, Haiku 4.5 to save cost.</span>
+        </div>
+        <div class="field" style="grid-column:1/-1">
+          <label class="toggle"><input type="checkbox" id="redact" checked /><span>Redact patient identifiers (name &amp; date of birth) in preview and downloads</span></label>
+          <span class="hint">When on, name shows as <span style="font-family:var(--mono)">REDACTED</span> and DOB is dropped. Accession ID, age, height, weight, gender and BMI are kept — they're clinically useful and not direct identifiers.</span>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    <script type="module" src="js/app.js"></script>
-  </body>
+  <!-- Upload -->
+  <section class="panel">
+    <div class="panel__head"><span class="eyebrow">02 — Input</span><h2>Upload reports</h2></div>
+    <div class="panel__body">
+      <div class="drop" id="drop" tabindex="0" role="button" aria-label="Upload reports">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div class="t">Drop PFT reports here, or click to browse</div>
+        <div class="s">PDF, PNG or JPG · multiple files · spirometry, body plethysmography, oscillometry, DLCO</div>
+        <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg,image/png,image/jpeg,application/pdf" multiple hidden />
+      </div>
+      <ul class="filelist" id="fileList"></ul>
+      <div class="queueactions" id="queueActions" hidden>
+        <button type="button" class="btn btn--primary" id="processBtn">Extract all</button>
+        <button type="button" class="btn btn--ghost" id="clearBtn">Clear queue</button>
+      </div>
+      <div class="note">
+        <b>Heads up:</b> each page is sent to Anthropic's Claude API to be read. Only upload reports you're permitted to share with Anthropic. This page keeps nothing on a server — extraction and downloads happen in your browser, and your key lives in localStorage rather than the page source. Always eyeball the extracted numbers against the source before using them.
+      </div>
+    </div>
+  </section>
+
+  <!-- Test sections render here -->
+  <div id="sections"></div>
+
+  <!-- Combined -->
+  <section class="panel combined" id="combinedPanel" hidden>
+    <div class="panel__head"><span class="eyebrow">04 — Combined dataset</span><h2>All tests, one table</h2></div>
+    <div class="panel__body">
+      <div class="summary" id="combinedSummary"></div>
+      <button type="button" class="btn btn--primary" id="dlCombinedCsv">Download combined CSV</button>
+      <button type="button" class="btn btn--ghost" id="dlCombinedXlsx">Download combined XLSX</button>
+    </div>
+  </section>
+
+  <div class="footer">
+    PFT Report Extractor · spirometry · body plethysmography · respiratory oscillometry · DLCO<br>
+    Extracted values are AI-generated and may contain errors. Review before any clinical or research use. Not a diagnostic device.
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+/* ============================================================
+   PFT Report Extractor — multi-test
+   Spirometry · Body Plethysmography · Oscillometry · DLCO
+   ============================================================ */
+
+/* ---- Test schemas (drive the prompt, the tables and the exports) ---- */
+const TESTS = {
+  spirometry: {
+    id:'spirometry', name:'Spirometry', accent:'var(--c-spiro)', accentHex:'#0E7C86',
+    columns:[
+      {id:'pred',label:'Pred'},
+      {id:'pre',label:'Pre'},
+      {id:'pre_pct_pred',label:'Pre %Pred'},
+      {id:'post',label:'Post'},
+      {id:'post_pct_pred',label:'Post %Pred'},
+      {id:'lln',label:'LLN'},
+      {id:'z_score',label:'Z-Score'},
+      {id:'pct_change',label:'%Change'},
+    ],
+    parameters:[
+      {name:'FVC',unit:'L'},{name:'FEV 1',unit:'L'},{name:'FEV1%FVC',unit:'%'},
+      {name:'FEF 25',unit:'L/s'},{name:'FEF 50',unit:'L/s'},{name:'FEF 75',unit:'L/s'},
+      {name:'FEF 25-75',unit:'L/s'},{name:'PEF',unit:'L/s'},{name:'FET',unit:'sec'},
+    ],
+  },
+  bodyple: {
+    id:'bodyple', name:'Body Plethysmography', accent:'var(--c-body)', accentHex:'#3B5BA5',
+    columns:[
+      {id:'pred',label:'Pred'},{id:'pre',label:'Pre'},{id:'pct_pred',label:'%Pred'},
+      {id:'lln',label:'LLN'},{id:'z_score',label:'Z-Score'},
+    ],
+    parameters:[
+      {name:'Raw tot',unit:'kPa*s/L'},{name:'sRaw tot',unit:'kPa*s'},{name:'Gaw tot',unit:'L/s/kPa'},
+      {name:'TGV',unit:'L'},{name:'ERV',unit:'L'},{name:'RV',unit:'L'},{name:'TLC',unit:'L'},
+      {name:'RV%TLC',unit:'%'},{name:'TGV%TLC',unit:'%'},{name:'FEV 1',unit:'L'},
+      {name:'VC MAX',unit:'L'},{name:'VT',unit:'L'},{name:'FRC',unit:'L'},
+    ],
+  },
+  oscillometry: {
+    id:'oscillometry', name:'Respiratory Oscillometry', accent:'var(--c-osc)', accentHex:'#7A4FB5',
+    columns:[
+      {id:'cutoff',label:'Cut-off'},{id:'pre',label:'Pre'},{id:'post',label:'Post'},{id:'pct_change',label:'%Change'},
+    ],
+    parameters:[
+      {name:'Z5',unit:'cmH2O/L/s'},{name:'Z19',unit:'cmH2O/L/s'},{name:'R5',unit:'cmH2O/L/s'},
+      {name:'R5Insp',unit:'cmH2O/L/s'},{name:'R5Exp',unit:'cmH2O/L/s'},{name:'R19',unit:'cmH2O/L/s'},
+      {name:'R5-R19',unit:'cmH2O/L/s'},{name:'X5',unit:'cmH2O/L/s'},{name:'X5Insp',unit:'cmH2O/L/s'},
+      {name:'X5Exp',unit:'cmH2O/L/s'},{name:'AX',unit:'cmH2O/L'},{name:'Fres',unit:'Hz'},
+    ],
+  },
+  dlco: {
+    id:'dlco', name:'DLCO', accent:'var(--c-dlco)', accentHex:'#BD5B1E',
+    columns:[
+      {id:'pred',label:'Pred'},{id:'pre',label:'Pre'},{id:'pct_pred',label:'%Pred'},
+      {id:'lln',label:'LLN'},{id:'z_score',label:'Z-Score'},
+    ],
+    parameters:[
+      {name:'DLCO',unit:'ml/min/mmHg'},{name:'DLCOc',unit:'ml/min/mmHg'},{name:'Hb',unit:'g/dl'},
+      {name:'KCO',unit:'ml/min/mmHg/L'},{name:'VA',unit:'L'},{name:'TLC',unit:'L'},
+      {name:'VC IN',unit:'L'},{name:'RV',unit:'L'},{name:'RV%TLC',unit:'%'},
+      {name:'T hold',unit:'sec'},{name:'VC MAX',unit:'L'},{name:'VCin/VC',unit:'%'},
+    ],
+  },
+};
+const TEST_ORDER = ['spirometry','bodyple','oscillometry','dlco'];
+
+/* Superset of value columns for the combined export */
+const COMBINED_COLS = [
+  {id:'cutoff',label:'Cut-off'},{id:'pred',label:'Pred'},{id:'pre',label:'Pre'},
+  {id:'pre_pct_pred',label:'Pre %Pred'},{id:'pct_pred',label:'%Pred'},{id:'post',label:'Post'},
+  {id:'post_pct_pred',label:'Post %Pred'},{id:'lln',label:'LLN'},{id:'z_score',label:'Z-Score'},
+  {id:'pct_change',label:'%Change'},
+];
+
+const DEMO_FIELDS = [
+  {id:'name',label:'Patient'},{id:'patient_id',label:'Patient ID'},{id:'dob',label:'DOB'},
+  {id:'age',label:'Age'},{id:'height_cm',label:'Height (cm)'},{id:'weight_kg',label:'Weight (kg)'},
+  {id:'gender',label:'Gender'},{id:'bmi',label:'BMI'},{id:'test_date',label:'Test date'},
+  {id:'smoking_status',label:'Smoking'},
+];
+
+/* ---- State ---- */
+const KEY_STORE = 'pft_extractor_anthropic_key';
+const MODEL_STORE = 'pft_extractor_anthropic_model';
+const REDACT_STORE = 'pft_extractor_redact';
+const ANTHROPIC_VERSION = '2023-06-01';
+const MODELS = ['claude-sonnet-4-6','claude-haiku-4-5-20251001','claude-opus-4-8'];
+const DEFAULT_MODEL = 'claude-sonnet-4-6';
+
+const state = {
+  apiKey: localStorage.getItem(KEY_STORE) || '',
+  model: MODELS.includes(localStorage.getItem(MODEL_STORE)) ? localStorage.getItem(MODEL_STORE) : DEFAULT_MODEL,
+  redact: localStorage.getItem(REDACT_STORE) !== '0',
+  files: [],            // {id,name,file,status,error}
+  records: { spirometry:[], bodyple:[], oscillometry:[], dlco:[] }, // {fileId,fileName,patient,values}
+};
+let fileSeq = 0;
+
+/* ---- DOM ---- */
+const $ = (s)=>document.querySelector(s);
+const apiKeyEl=$('#apiKey'), modelEl=$('#modelSel'), redactEl=$('#redact');
+const dropEl=$('#drop'), fileInput=$('#fileInput'), fileListEl=$('#fileList');
+const queueActions=$('#queueActions'), processBtn=$('#processBtn'), clearBtn=$('#clearBtn');
+const sectionsEl=$('#sections'), pillRow=$('#pillRow');
+const combinedPanel=$('#combinedPanel'), combinedSummary=$('#combinedSummary');
+
+/* ---- Init UI ---- */
+apiKeyEl.value = state.apiKey;
+modelEl.value = state.model;
+redactEl.checked = state.redact;
+
+TEST_ORDER.forEach(id=>{
+  const t=TESTS[id];
+  const p=document.createElement('span');
+  p.className='testpill'; p.style.color=t.accentHex; p.textContent=t.name;
+  pillRow.appendChild(p);
+});
+
+apiKeyEl.addEventListener('input',()=>{state.apiKey=apiKeyEl.value.trim();localStorage.setItem(KEY_STORE,state.apiKey);});
+modelEl.addEventListener('change',()=>{state.model=modelEl.value;localStorage.setItem(MODEL_STORE,state.model);});
+redactEl.addEventListener('change',()=>{state.redact=redactEl.checked;localStorage.setItem(REDACT_STORE,state.redact?'1':'0');renderSections();});
+$('#toggleKey').addEventListener('click',()=>{
+  const showing=apiKeyEl.type==='text';
+  apiKeyEl.type=showing?'password':'text';
+  $('#toggleKey').textContent=showing?'Show':'Hide';
+});
+
+/* ---- File intake ---- */
+dropEl.addEventListener('click',()=>fileInput.click());
+dropEl.addEventListener('keydown',(e)=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();fileInput.click();}});
+dropEl.addEventListener('dragover',(e)=>{e.preventDefault();dropEl.classList.add('drag');});
+dropEl.addEventListener('dragleave',()=>dropEl.classList.remove('drag'));
+dropEl.addEventListener('drop',(e)=>{e.preventDefault();dropEl.classList.remove('drag');addFiles(e.dataTransfer.files);});
+fileInput.addEventListener('change',()=>{addFiles(fileInput.files);fileInput.value='';});
+clearBtn.addEventListener('click',()=>{state.files=[];renderQueue();});
+processBtn.addEventListener('click',processAll);
+
+function addFiles(list){
+  for(const f of list){
+    const ok=/\.(pdf|png|jpe?g)$/i.test(f.name)||/(pdf|png|jpeg)/.test(f.type);
+    if(!ok) continue;
+    state.files.push({id:++fileSeq,name:f.name,file:f,status:'pending',error:''});
+  }
+  renderQueue();
+}
+
+function renderQueue(){
+  fileListEl.innerHTML='';
+  state.files.forEach(f=>{
+    const li=document.createElement('li');
+    li.className='fileitem';
+    li.innerHTML=`<span class="nm"></span><span class="status ${f.status}">${f.status}</span><button class="x" title="Remove">&times;</button>`;
+    li.querySelector('.nm').textContent=f.name;
+    if(f.status==='error') li.querySelector('.status').title=f.error;
+    li.querySelector('.x').addEventListener('click',()=>{state.files=state.files.filter(x=>x.id!==f.id);renderQueue();});
+    fileListEl.appendChild(li);
+  });
+  queueActions.hidden = state.files.length===0;
+}
+
+/* ---- File -> images ---- */
+let pdfjsLib=null;
+async function loadPdfjs(){
+  if(pdfjsLib) return pdfjsLib;
+  pdfjsLib=await import('https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.mjs');
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.mjs';
+  return pdfjsLib;
+}
+function fileToBase64(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=()=>res(String(r.result).split(',')[1]);
+    r.onerror=()=>rej(new Error('Could not read file'));
+    r.readAsDataURL(file);
+  });
+}
+async function pdfToImages(file){
+  const lib=await loadPdfjs();
+  const buf=await file.arrayBuffer();
+  const pdf=await lib.getDocument({data:buf}).promise;
+  const out=[]; const max=Math.min(pdf.numPages,8);
+  for(let i=1;i<=max;i++){
+    const page=await pdf.getPage(i);
+    const vp=page.getViewport({scale:2.0});
+    const canvas=document.createElement('canvas');
+    canvas.width=vp.width; canvas.height=vp.height;
+    await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+    out.push({mime:'image/png',data:canvas.toDataURL('image/png').split(',')[1]});
+  }
+  return out;
+}
+async function fileToParts(file){
+  if(/pdf/i.test(file.type)||/\.pdf$/i.test(file.name)) return await pdfToImages(file);
+  const mime=/png/i.test(file.type)||/\.png$/i.test(file.name)?'image/png':'image/jpeg';
+  return [{mime,data:await fileToBase64(file)}];
+}
+
+/* ---- Extraction prompt (built from schemas) ---- */
+function buildPrompt(){
+  let blocks='';
+  for(const id of TEST_ORDER){
+    const t=TESTS[id];
+    const params=t.parameters.map(p=>p.name+' ['+p.unit+']').join(', ');
+    const fields=t.columns.map(c=>c.id).join(', ');
+    blocks+='\n### '+t.name+'\n'
+      +'Set "test_type" to exactly "'+t.name+'".\n'
+      +'Parameters to look for (keep this exact spelling in "parameter"): '+params+'.\n'
+      +'For each parameter, return these numeric fields when the column exists: '+fields+'.\n';
+  }
+  return (
+'You are a precise data extractor for pulmonary function test (PFT) reports from Breathefree Lung Wellness Center (machines: Vyaire/Jaeger LFX and iCaltech Antlia). '
++'You are given the page image(s) of ONE report, which usually contains a single test but may contain more than one. '
++'Identify which of the four test types below are present and extract each one\'s result table.\n\n'
++'OUTPUT: return STRICT JSON only — no markdown, no commentary, no code fences.\n\n'
++'PATIENT BLOCK — read the header once and return:\n'
++'name, patient_id, dob, age, height_cm, weight_kg, gender, bmi, test_date, smoking_status.\n'
++'Use null for anything absent. age/height_cm/weight_kg/bmi are numbers (no units). dob and test_date as printed.\n\n'
++'VALUE RULES (apply to every result cell):\n'
++'- Return numbers only: strip "%", units and spaces. Keep negative signs and decimals.\n'
++'- Use null for "-", "—", blank or missing cells.\n'
++'- Z-Score is the numeric value only — ignore any coloured bar or arrow next to it.\n'
++'- Oscillometry: read the main summary table with columns Parameters / Cut Off / PRE / POST / %Change. '
++'If a cell reads like "3.84 (COV: 6.4)", return only 3.84. The "cutoff" field may be a string to keep operators like "<12"; everything else is numeric.\n'
++'- Spirometry columns are: Pred, Pre, Pre %Pred, Post, Post %Pred, LLN, Z-Score, %Change. '
++'Map Pre %Pred to pre_pct_pred and Post %Pred to post_pct_pred. If the report has no post-bronchodilator columns, set post and post_pct_pred to null.\n'
++'- Body Plethysmography and DLCO columns are: Pred, Pre, %Pred (map to pct_pred), LLN, Z-Score.\n'
++'- Only include parameters that actually appear in the report. Do not invent rows.\n'
++blocks
++'\nRETURN THIS SHAPE EXACTLY:\n'
++'{\n'
++'  "patient": {"name": "...", "patient_id": "...", "dob": "...", "age": 0, "height_cm": 0, "weight_kg": 0, "gender": "...", "bmi": 0, "test_date": "...", "smoking_status": "..."},\n'
++'  "tests": [\n'
++'    {"test_type": "Spirometry", "rows": [\n'
++'      {"parameter": "FVC", "unit": "L", "pred": 4.53, "pre": 2.96, "pre_pct_pred": 65, "post": 2.88, "post_pct_pred": 64, "lln": 3.74, "z_score": -3.4, "pct_change": -3}\n'
++'    ]}\n'
++'  ]\n'
++'}'
+  );
+}
+
+/* ---- Claude (Anthropic) vision call ---- */
+async function callClaude(parts){
+  if(!state.apiKey) throw new Error('Add your Anthropic API key in Settings first.');
+  // Images first, then the instruction text (Claude reads image-then-text best).
+  const content=[
+    ...parts.map(p=>({type:'image',source:{type:'base64',media_type:p.mime,data:p.data}})),
+    {type:'text',text:buildPrompt()},
+  ];
+  const body={
+    model:state.model,
+    max_tokens:8192,
+    messages:[
+      {role:'user',content:content},
+      {role:'assistant',content:'{'},   // prefill forces a clean JSON object, no prose
+    ],
+  };
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-api-key':state.apiKey,
+      'anthropic-version':ANTHROPIC_VERSION,
+      'anthropic-dangerous-direct-browser-access':'true',
+    },
+    body:JSON.stringify(body),
+  });
+  if(!resp.ok){
+    let msg='Anthropic API error ('+resp.status+')';
+    try{const j=await resp.json();msg=(j.error&&j.error.message)?j.error.message:msg;}catch(e){}
+    throw new Error(msg);
+  }
+  const data=await resp.json();
+  let text='';
+  if(Array.isArray(data.content)) text=data.content.filter(b=>b.type==='text').map(b=>b.text||'').join('');
+  if(!text) throw new Error('Empty response from Claude (content may have been blocked).');
+  const t=text.replace(/^```json\s*|^```\s*|```\s*$/g,'').trimStart();
+  const full=t.startsWith('{')?t:'{'+t;   // re-attach the prefilled opening brace
+  try{ return JSON.parse(full); }
+  catch(e){
+    const m=full.match(/\{[\s\S]*\}/);
+    if(m) return JSON.parse(m[0]);
+    throw new Error('Could not parse JSON from the model response.');
+  }
+}
+
+/* ---- Routing & normalisation ---- */
+function normName(s){return String(s==null?'':s).toLowerCase().replace(/\s+/g,' ').replace(/%\s+/g,'%').trim();}
+function matchTestId(tt){
+  const s=normName(tt);
+  if(/spiro/.test(s)) return 'spirometry';
+  if(/pleth|body|lung vol/.test(s)) return 'bodyple';
+  if(/oscill|forced osc|\bfot\b|\bios\b/.test(s)) return 'oscillometry';
+  if(/dlco|tlco|diffus/.test(s)) return 'dlco';
+  return null;
+}
+function cell(v){
+  if(v===null||v===undefined||v==='-'||v==='—'||v==='') return '';
+  return String(v).trim();
+}
+function buildRecord(testId,fileId,fileName,patient,rows){
+  const t=TESTS[testId];
+  const wantByName=new Map(t.parameters.map(p=>[normName(p.name),p]));
+  const incoming=new Map();
+  (rows||[]).forEach(r=>incoming.set(normName(r.parameter),r));
+  const values={};
+  t.parameters.forEach(p=>{
+    const got=incoming.get(normName(p.name));
+    const row={};
+    t.columns.forEach(c=>{row[c.id]= got?cell(got[c.id]):'';});
+    values[p.name]={unit:p.unit,cols:row};
+  });
+  // include any extra parameters the model found that aren't in our canonical list
+  (rows||[]).forEach(r=>{
+    if(!wantByName.has(normName(r.parameter)) && r.parameter){
+      const row={};
+      t.columns.forEach(c=>{row[c.id]=cell(r[c.id]);});
+      values[r.parameter]={unit:cell(r.unit),cols:row,extra:true};
+    }
+  });
+  return {fileId,fileName,patient:patient||{},values};
+}
+
+async function processAll(){
+  if(!state.apiKey){toast('Add your Anthropic API key first.');apiKeyEl.focus();return;}
+  processBtn.disabled=true; clearBtn.disabled=true;
+  const pending=state.files.filter(f=>f.status==='pending'||f.status==='error');
+  for(const f of pending){
+    f.status='processing'; f.error=''; renderQueue();
+    try{
+      const parts=await fileToParts(f.file);
+      const result=await callClaude(parts);
+      const patient=result.patient||{};
+      const tests=Array.isArray(result.tests)?result.tests:[];
+      if(!tests.length) throw new Error('No recognised test table found in this report.');
+      let routed=0;
+      tests.forEach(tb=>{
+        const tid=matchTestId(tb.test_type);
+        if(!tid) return;
+        // replace any existing record from the same file+test
+        state.records[tid]=state.records[tid].filter(r=>r.fileId!==f.id);
+        state.records[tid].push(buildRecord(tid,f.id,f.name,patient,tb.rows));
+        routed++;
+      });
+      if(!routed) throw new Error('Test type not recognised: '+tests.map(t=>t.test_type).join(', '));
+      f.status='done';
+    }catch(err){
+      f.status='error'; f.error=err.message||String(err);
+    }
+    renderQueue(); renderSections();
+  }
+  processBtn.disabled=false; clearBtn.disabled=false;
+}
+
+/* ---- Render sections ---- */
+function dem(patient,field){
+  let v=patient?patient[field]:'';
+  if(state.redact && field==='name') return 'REDACTED';
+  if(state.redact && field==='dob') return '';
+  return (v===null||v===undefined)?'':String(v);
+}
+function renderSections(){
+  sectionsEl.innerHTML='';
+  TEST_ORDER.forEach((id,i)=>{
+    const t=TESTS[id];
+    const recs=state.records[id];
+    const sec=document.createElement('section');
+    sec.className='panel section';
+    sec.style.setProperty('--accent',t.accentHex);
+    const head=document.createElement('div');
+    head.className='panel__head';
+    head.innerHTML=`<span class="dot"></span><span class="eyebrow">03.${i+1} — Test</span>`
+      +`<h2>${t.name}</h2><span class="grow"></span><span class="count">${recs.length} report${recs.length===1?'':'s'}</span>`;
+    sec.appendChild(head);
+
+    const body=document.createElement('div');
+    body.className='panel__body';
+    if(!recs.length){
+      body.innerHTML=`<div class="empty">No ${t.name.toLowerCase()} data yet. Upload a ${t.name.toLowerCase()} report above and run <b>Extract all</b>.</div>`;
+    }else{
+      recs.forEach(rec=>body.appendChild(renderRecord(id,rec)));
+    }
+    sec.appendChild(body);
+
+    if(recs.length){
+      const foot=document.createElement('div');
+      foot.className='secfoot';
+      foot.innerHTML=`<span class="lbl">Download just this test</span>`;
+      const csv=document.createElement('button'); csv.className='btn btn--accent btn--sm acc'; csv.textContent='CSV';
+      csv.addEventListener('click',()=>downloadTestCsv(id));
+      const xlsx=document.createElement('button'); xlsx.className='btn btn--ghost btn--sm'; xlsx.textContent='XLSX';
+      xlsx.addEventListener('click',()=>downloadTestXlsx(id));
+      foot.appendChild(csv); foot.appendChild(xlsx);
+      sec.appendChild(foot);
+    }
+    sectionsEl.appendChild(sec);
+  });
+  updateCombined();
+}
+
+function renderRecord(testId,rec){
+  const t=TESTS[testId];
+  const wrap=document.createElement('div'); wrap.className='record';
+  const head=document.createElement('div'); head.className='rechead';
+  const demBits=[];
+  if(dem(rec.patient,'name')) demBits.push(`<span class="dem"><b>${esc(dem(rec.patient,'name'))}</b></span>`);
+  ['patient_id','age','gender','height_cm','weight_kg','bmi','test_date'].forEach(fid=>{
+    const v=dem(rec.patient,fid); if(v) {
+      const lbl=DEMO_FIELDS.find(d=>d.id===fid).label;
+      demBits.push(`<span class="dem">${lbl}: <b>${esc(v)}</b></span>`);
+    }
+  });
+  head.innerHTML=`<span class="file">${esc(rec.fileName)}</span>`+demBits.join('');
+  wrap.appendChild(head);
+
+  const scroll=document.createElement('div'); scroll.className='tablescroll';
+  const tbl=document.createElement('table'); tbl.className='data';
+  const thead=document.createElement('thead');
+  let hr='<tr><th class="l">Parameter</th><th class="l">Unit</th>';
+  t.columns.forEach(c=>hr+=`<th>${c.label}</th>`);
+  hr+='</tr>'; thead.innerHTML=hr; tbl.appendChild(thead);
+  const tb=document.createElement('tbody');
+  Object.keys(rec.values).forEach(pname=>{
+    const v=rec.values[pname];
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td class="l param">${esc(pname)}</td><td class="l unit">${esc(v.unit)}</td>`;
+    t.columns.forEach(c=>{
+      const td=document.createElement('td');
+      const inp=document.createElement('input');
+      inp.type='text'; inp.value=v.cols[c.id]||'';
+      inp.addEventListener('input',()=>{v.cols[c.id]=inp.value;updateCombined();});
+      td.appendChild(inp); tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+  tbl.appendChild(tb); scroll.appendChild(tbl); wrap.appendChild(scroll);
+  return wrap;
+}
+
+function updateCombined(){
+  const total=TEST_ORDER.reduce((n,id)=>n+state.records[id].length,0);
+  combinedPanel.hidden = total===0;
+  if(total===0) return;
+  const parts=TEST_ORDER.filter(id=>state.records[id].length).map(id=>`${state.records[id].length} ${TESTS[id].name}`);
+  combinedSummary.innerHTML=`<b>${total}</b> report${total===1?'':'s'} across ${parts.length} test type${parts.length===1?'':'s'} — `+parts.join(' · ')+'. One row per parameter, union of all columns.';
+}
+
+/* ---- Exports ---- */
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function csvCell(v){
+  const s=(v===null||v===undefined)?'':String(v);
+  return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;
+}
+function aoaToCsv(aoa){return aoa.map(r=>r.map(csvCell).join(',')).join('\r\n');}
+function triggerDownload(content,filename,mime){
+  const blob=new Blob([content],{type:mime});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function demCols(rec){
+  return DEMO_FIELDS.filter(d=>!(state.redact&&(d.id==='name'||d.id==='dob')))
+    .map(d=>dem(rec.patient,d.id));
+}
+function demHeaders(){
+  return DEMO_FIELDS.filter(d=>!(state.redact&&(d.id==='name'||d.id==='dob'))).map(d=>d.label);
+}
+function testAoa(testId){
+  const t=TESTS[testId];
+  const header=[...demHeaders(),'Test','Parameter','Unit',...t.columns.map(c=>c.label)];
+  const rows=[header];
+  state.records[testId].forEach(rec=>{
+    Object.keys(rec.values).forEach(pname=>{
+      const v=rec.values[pname];
+      rows.push([...demCols(rec),t.name,pname,v.unit,...t.columns.map(c=>v.cols[c.id]||'')]);
+    });
+  });
+  return rows;
+}
+function combinedAoa(){
+  const header=['Source file',...demHeaders(),'Test','Parameter','Unit',...COMBINED_COLS.map(c=>c.label)];
+  const rows=[header];
+  TEST_ORDER.forEach(id=>{
+    state.records[id].forEach(rec=>{
+      Object.keys(rec.values).forEach(pname=>{
+        const v=rec.values[pname];
+        rows.push([rec.fileName,...demCols(rec),TESTS[id].name,pname,v.unit,
+          ...COMBINED_COLS.map(c=>v.cols[c.id]!==undefined?v.cols[c.id]||'':'')]);
+      });
+    });
+  });
+  return rows;
+}
+function stamp(){return new Date().toISOString().slice(0,10);}
+function downloadTestCsv(id){
+  triggerDownload(aoaToCsv(testAoa(id)),`PFT_${id}_${stamp()}.csv`,'text/csv;charset=utf-8;');
+  toast(TESTS[id].name+' CSV downloaded');
+}
+function hasXLSX(){return typeof XLSX!=='undefined';}
+function downloadTestXlsx(id){
+  if(!hasXLSX()){toast('XLSX library unavailable — use CSV.');return;}
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(testAoa(id)),sheetName(TESTS[id].name));
+  XLSX.writeFile(wb,`PFT_${id}_${stamp()}.xlsx`);
+  toast(TESTS[id].name+' XLSX downloaded');
+}
+function sheetName(n){return n.replace(/[\\\/\?\*\[\]:]/g,'').slice(0,31);}
+$('#dlCombinedCsv').addEventListener('click',()=>{
+  triggerDownload(aoaToCsv(combinedAoa()),`PFT_combined_${stamp()}.csv`,'text/csv;charset=utf-8;');
+  toast('Combined CSV downloaded');
+});
+$('#dlCombinedXlsx').addEventListener('click',()=>{
+  if(!hasXLSX()){toast('XLSX library unavailable — use CSV.');return;}
+  const wb=XLSX.utils.book_new();
+  TEST_ORDER.forEach(id=>{
+    if(state.records[id].length)
+      XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(testAoa(id)),sheetName(TESTS[id].name));
+  });
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(combinedAoa()),'Combined');
+  XLSX.writeFile(wb,`PFT_combined_${stamp()}.xlsx`);
+  toast('Combined XLSX downloaded');
+});
+
+/* ---- Toast ---- */
+let toastTimer=null;
+function toast(msg){
+  const el=$('#toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2600);
+}
+
+/* ---- First paint ---- */
+renderQueue();
+renderSections();
+</script>
+</body>
 </html>
